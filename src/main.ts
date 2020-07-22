@@ -4,9 +4,13 @@ import { Card } from './Card';
 import { Player } from './Player';
 import { Room } from './Room';
 
+const port = Number(process.env.PORT) || 3000;
+
 const wss = new WebSocket.Server({
-  port: 80,
+  port,
 });
+
+console.log('Port:', port);
 
 const room = new Room();
 
