@@ -104,8 +104,6 @@ export class Game {
 
     this.state = GameState.Attack;
 
-    this.stock.takeBack(20);
-
     return true;
   }
 
@@ -178,7 +176,7 @@ export class Game {
       }
 
       // If defender has more cards - attack continues
-      this.currentIndex = this.attackerIndex;
+      this.currentIndex = this.passerIndex;
       return true;
     }
 
@@ -192,6 +190,7 @@ export class Game {
 
     this.state = GameState.Take;
     this.currentIndex = this.attackerIndex;
+    this.passerIndex = this.attackerIndex;
 
     return true;
   }
@@ -265,6 +264,7 @@ export class Game {
     let attackerIndex = this.attackerIndex;
     for (let i = 0; i < this.hands.length; i++) {
       if (attackerIndex === this.defenderIndex) {
+        attackerIndex = (attackerIndex + 1) % this.hands.length;
         continue;
       }
 

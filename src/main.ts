@@ -14,14 +14,21 @@ const wsPlayerMap = new Map<WebSocket, Player>();
 
 wss.on('connection', (ws) => {
   ws.on('message', (messageJSON: string) => {
-    const message = JSON.parse(messageJSON);
+    let message = null;
+    try {
+      message = JSON.parse(messageJSON);
+    } catch (err) {
+      // Json parse error
+    }
+    if (message === null) {
+      return;
+    }
+
     console.log('message', message);
 
     if (message.id === 'register') {
-      // if (message.pid)
-
       const playerId = room.generatePlayerId();
-      const player = new Player(playerId);
+      const player = new Player(playerId, message.name);
 
       room.registerPlayer(player);
 
@@ -33,7 +40,7 @@ wss.on('connection', (ws) => {
         broadcastGame();
       }
       broadcastLog(
-        `${player.getId()} присоединился как ${player.getDisplayRole()}`,
+        `"${player.getName()}" присоединился как ${player.getDisplayRole()}`,
       );
 
       return;
@@ -108,59 +115,57 @@ wss.on('connection', (ws) => {
     }
   });
 
-  // ws.on('error', (err) => {
-  //   const player = wsPlayerMap.get(ws);
+  ws.on('error', () => {
+    handleClientError(ws);
+  });
 
-  //   console.log('err', err);
-  // });
-
-  ws.on('close', (code, reason) => {
-    console.log('Close: ', code, reason);
-
-    const player = wsPlayerMap.get(ws);
-    if (player === undefined) {
-      return;
-    }
-
-    room.unregisterPlayer(player);
-    wsPlayerMap.delete(ws);
-
-    broadcastLog(`${player.getId()} отключился`);
-
-    if (!room.hasPlayers()) {
-      room.clear();
-      // TODO: remove room
-      return;
-    }
-
-    if (player.isNotObverser()) {
-      room.stopGame();
-      broadcastLog(`Игра остановлена (игрок отключился)`);
-    }
-
-    if (player.isHost()) {
-      const newHostPlayer = room.getHostPlayer();
-      if (!newHostPlayer) {
-        console.log('Host player not found');
-        return;
-      }
-
-      const client = findClientByPlayer(newHostPlayer);
-      if (!client) {
-        console.log('Host player client not found');
-        return;
-      }
-
-      sendPlayer(client);
-      broadcastLog(
-        `${newHostPlayer.getId()} теперь ${newHostPlayer.getDisplayRole()}`,
-      );
-    }
-
-    broadcastRoom();
-    broadcastGame();
+  ws.on('close', () => {
+    handleClientError(ws);
   });
 });
+
+function handleClientError(ws) {
+  const player = wsPlayerMap.get(ws);
+  if (player === undefined) {
+    return;
+  }
+
+  room.unregisterPlayer(player);
+  wsPlayerMap.delete(ws);
+
+  broadcastLog(`"${player.getName()}" отключился`);
+
+  if (!room.hasPlayers()) {
+    room.clear();
+    // TODO: remove room
+    return;
+  }
+
+  if (player.isNotObverser()) {
+    room.stopGame();
+    broadcastLog(`Игра остановлена (игрок отключился)`);
+  }
+
+  if (player.isHost()) {
+    const newHostPlayer = room.getHostPlayer();
+    if (!newHostPlayer) {
+      return;
+    }
+
+    const client = findClientByPlayer(newHostPlayer);
+    if (!client) {
+      return;
+    }
+
+    sendPlayer(client);
+    broadcastLog(
+      `"${newHostPlayer.getName()}" теперь ${newHostPlayer.getDisplayRole()}`,
+    );
+  }
+
+  broadcastRoom();
+  broadcastGame();
+}
 
 function findClientByPlayer(playerToFind: Player): WebSocket {
   let foundClient = undefined;

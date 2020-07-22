@@ -6,15 +6,21 @@ export enum PlayerRole {
 
 export class Player {
   private id: number;
+  private name: string;
   private role = PlayerRole.Regular;
   private lossCount = 0;
 
-  constructor(id: number) {
+  constructor(id: number, name = `Игрок #${id}`) {
     this.id = id;
+    this.name = name;
   }
 
   getId(): number {
     return this.id;
+  }
+
+  getName(): string {
+    return this.name;
   }
 
   setRole(role: PlayerRole): void {
@@ -61,6 +67,7 @@ export class Player {
   toObject(): object {
     return {
       id: this.id,
+      name: this.name,
       role: this.role,
       lossCount: this.lossCount,
     };
