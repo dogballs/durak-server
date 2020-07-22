@@ -5,7 +5,7 @@ import { Player } from './Player';
 import { Room } from './Room';
 
 const wss = new WebSocket.Server({
-  port: 3000,
+  port: 80,
 });
 
 const room = new Room();
