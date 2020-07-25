@@ -7,8 +7,7 @@ export enum RoomState {
 
 import { Game } from './Game';
 import { Player, PlayerRole } from './Player';
-
-const ROOM_MIN_PLAYERS = 2;
+import * as config from './config';
 
 export class Room {
   private state = RoomState.WaitingForHost;
@@ -16,6 +15,7 @@ export class Room {
   private players: Player[] = [];
   private playerIdCounter = 0;
   private lastLossPlayerId = -1;
+  private lastTouch: number = new Date().getTime();
 
   generatePlayerId(): number {
     const id = this.playerIdCounter;
@@ -118,9 +118,9 @@ export class Room {
 
     if (this.players.length === 0) {
       this.state = RoomState.WaitingForHost;
-    } else if (this.players.length < ROOM_MIN_PLAYERS) {
+    } else if (this.players.length < config.ROOM_MIN_PLAYERS) {
       this.state = RoomState.WaitingForGuests;
-    } else if (this.players.length >= ROOM_MIN_PLAYERS) {
+    } else if (this.players.length >= config.ROOM_MIN_PLAYERS) {
       this.state = RoomState.WaitingForStart;
     }
   }
@@ -138,6 +138,10 @@ export class Room {
     this.game.clear();
     this.playerIdCounter = 0;
     this.players = [];
+  }
+
+  isWaitingForHost(): boolean {
+    return this.state === RoomState.WaitingForHost;
   }
 
   isPlaying(): boolean {
@@ -162,5 +166,13 @@ export class Room {
 
   getHostPlayer(): Player {
     return this.players.find((player) => player.isHost());
+  }
+
+  touch(): void {
+    this.lastTouch = new Date().getTime();
+  }
+
+  getLastTouch(): number {
+    return this.lastTouch;
   }
 }

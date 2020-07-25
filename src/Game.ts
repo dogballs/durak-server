@@ -1,16 +1,28 @@
-import { Card } from './Card';
+import { Card, CardDto } from './Card';
 import { Deck } from './Deck';
 import { Hand } from './Hand';
-import { Round } from './Round';
-import { Player } from './Player';
-
-const HAND_CARDS_COUNT = 6;
+import { Round, RoundDto } from './Round';
+import { Player, PlayerDto } from './Player';
+import * as config from './config';
 
 export enum GameState {
   Idle = 0,
   Attack = 1,
   Take = 2,
   Ended = 3,
+}
+
+export interface GameDto {
+  players: PlayerDto[];
+  state: number;
+  trumpCard: CardDto;
+  stockCount: number;
+  discardCount: number;
+  attackerId: number;
+  defenderId: number;
+  passerId: number;
+  currentId: number;
+  round: RoundDto;
 }
 
 export class Game {
@@ -61,7 +73,7 @@ export class Game {
 
     this.discard = new Deck();
 
-    for (let cardIndex = 0; cardIndex < HAND_CARDS_COUNT; cardIndex++) {
+    for (let cardIndex = 0; cardIndex < config.HAND_MAX_CARDS; cardIndex++) {
       for (const hand of this.hands) {
         const card = this.stock.pop();
         hand.push(card);
@@ -415,7 +427,7 @@ export class Game {
     return player.getId();
   }
 
-  toObject(): object {
+  toObject(): GameDto {
     return {
       players: this.players.map((player) => player.toObject()),
       state: this.state,

@@ -1,28 +1,101 @@
+import * as url from 'url';
+
+import * as express from 'express';
+import * as cors from 'cors';
 import * as WebSocket from 'ws';
 
 import { Card } from './Card';
-import { Player } from './Player';
 import { Room } from './Room';
+import { RoomController } from './RoomController';
+import { StringIdGenerator } from './StringIdGenerator';
+import * as config from './config';
+
+const app = express();
+
+app.use(cors());
 
 const port = Number(process.env.PORT) || 3000;
 
-const wss = new WebSocket.Server({
-  port,
+const roomMap = new Map<string, Room>();
+
+app.post('/room', (req, res) => {
+  const roomId = StringIdGenerator.generateUnique(
+    config.ROOM_ID_LENGTH,
+    Array.from(roomMap.keys()),
+  );
+  const room = new Room();
+  roomMap.set(roomId, room);
+
+  cleanupRooms();
+
+  res.json({
+    roomId,
+  });
 });
 
-console.log('Port:', port);
+const wsServer = new WebSocket.Server({
+  noServer: true,
+});
 
-const room = new Room();
+const server = app.listen(port, () => {
+  console.log('Server started on port %s', port);
+});
 
-const wsPlayerMap = new Map<WebSocket, Player>();
+server.on('upgrade', (request, socket, head) => {
+  const pathname = url.parse(request.url).pathname;
+  const parts = pathname.split('/');
 
-wss.on('connection', (ws) => {
+  const roomId = parts[2];
+
+  const isRoom = parts[1] === 'room';
+  const isValidId = StringIdGenerator.validate(roomId, config.ROOM_ID_LENGTH);
+
+  const isValidRoomPath = isRoom && isValidId;
+  if (!isValidRoomPath) {
+    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+
+  if (!roomMap.has(roomId)) {
+    socket.write('HTTP/1.1 404 Not found\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+
+  wsServer.handleUpgrade(request, socket, head, (ws) => {
+    wsServer.emit('connection', ws, request);
+  });
+});
+
+wsServer.on('connection', (ws, request) => {
+  console.log('server: connection');
+
+  const pathname = url.parse(request.url).pathname;
+  const parts = pathname.split('/');
+  const roomId = parts[2];
+
+  const room = roomMap.get(roomId);
+
+  const roomController = new RoomController(room, wsServer, ws);
+  room.touch();
+
+  ws.on('upgrade', () => {
+    console.log('client: upgrade');
+  });
+
+  ws.on('open', () => {
+    console.log('client: open');
+  });
+
   ws.on('message', (messageJSON: string) => {
+    console.log('client: message');
+
     let message = null;
     try {
       message = JSON.parse(messageJSON);
     } catch (err) {
-      // Json parse error
+      // JSON parse error
     }
     if (message === null) {
       return;
@@ -30,235 +103,65 @@ wss.on('connection', (ws) => {
 
     console.log('message', message);
 
-    if (message.id === 'register') {
-      const playerId = room.generatePlayerId();
-      const player = new Player(playerId, message.name);
-
-      room.registerPlayer(player);
-
-      wsPlayerMap.set(ws, player);
-
-      sendPlayer(ws);
-      broadcastRoom();
-      if (room.isPlaying()) {
-        broadcastGame();
+    switch (message.id) {
+      case 'register':
+        roomController.register(message.name);
+        break;
+      case 'start':
+        roomController.start();
+        break;
+      case 'stop':
+        roomController.stop();
+        break;
+      case 'end':
+        roomController.end();
+        break;
+      case 'act': {
+        const card = new Card(message.card.suite, message.card.rank);
+        roomController.act(card);
+        break;
       }
-      broadcastLog(
-        `"${player.getName()}" присоединился как ${player.getDisplayRole()}`,
-      );
-
-      return;
-    }
-
-    if (message.id === 'start') {
-      const hasStarted = room.startGame();
-      if (!hasStarted) {
+      case 'take':
+        roomController.take();
+        break;
+      case 'pass':
+        roomController.pass();
+        break;
+      default:
         return;
-      }
-
-      broadcastLog(`Игра началась`);
-
-      broadcastRoom();
-      broadcastGame();
-      return;
     }
 
-    if (message.id === 'stop') {
-      const hasStopped = room.stopGame();
-      if (!hasStopped) {
-        return;
-      }
-
-      broadcastRoom();
-      broadcastGame();
-      broadcastLog(`Игра остановлена хостом`);
-      return;
-    }
-
-    if (message.id === 'end') {
-      const hasEnded = room.endGame();
-      if (!hasEnded) {
-        return;
-      }
-
-      broadcastRoom();
-      broadcastGame();
-      broadcastLog(`Игра закончена.`);
-      return;
-    }
-
-    if (message.id === 'act') {
-      const card = new Card(message.card.suite, message.card.rank);
-      const game = room.getGame();
-      const hasActed = game.act(card);
-      if (!hasActed) {
-        return;
-      }
-      broadcastGame();
-      return;
-    }
-
-    if (message.id === 'take') {
-      const game = room.getGame();
-      const hasTaken = game.take();
-      if (!hasTaken) {
-        return;
-      }
-      broadcastGame();
-      return;
-    }
-
-    if (message.id === 'pass') {
-      const game = room.getGame();
-      const hasPassed = game.pass();
-      if (!hasPassed) {
-        return;
-      }
-      broadcastGame();
-      return;
-    }
+    room.touch();
   });
 
   ws.on('error', () => {
-    handleClientError(ws);
+    console.log('client: error');
+    room.touch();
+    roomController.error();
   });
 
   ws.on('close', () => {
-    handleClientError(ws);
+    console.log('client: close');
+    room.touch();
+    roomController.error();
   });
 });
 
-function handleClientError(ws) {
-  const player = wsPlayerMap.get(ws);
-  if (player === undefined) {
-    return;
-  }
-
-  room.unregisterPlayer(player);
-  wsPlayerMap.delete(ws);
-
-  broadcastLog(`"${player.getName()}" отключился`);
-
-  if (!room.hasPlayers()) {
-    room.clear();
-    // TODO: remove room
-    return;
-  }
-
-  if (player.isNotObverser()) {
-    room.stopGame();
-    broadcastLog(`Игра остановлена (игрок отключился)`);
-  }
-
-  if (player.isHost()) {
-    const newHostPlayer = room.getHostPlayer();
-    if (!newHostPlayer) {
+function cleanupRooms(): void {
+  roomMap.forEach((room, id) => {
+    // Room still has some players
+    if (!room.isWaitingForHost()) {
       return;
     }
 
-    const client = findClientByPlayer(newHostPlayer);
-    if (!client) {
+    const nowSeconds = new Date().getTime();
+    const lastActionSeconds = room.getLastTouch();
+
+    // Room is still waiting its expiration time
+    if (nowSeconds < lastActionSeconds + config.ROOM_EXPIRATION_SECONDS) {
       return;
     }
 
-    sendPlayer(client);
-    broadcastLog(
-      `"${newHostPlayer.getName()}" теперь ${newHostPlayer.getDisplayRole()}`,
-    );
-  }
-
-  broadcastRoom();
-  broadcastGame();
-}
-
-function findClientByPlayer(playerToFind: Player): WebSocket {
-  let foundClient = undefined;
-
-  wsPlayerMap.forEach((player, client) => {
-    if (player.getId() === playerToFind.getId()) {
-      foundClient = client;
-    }
+    roomMap.delete(id);
   });
-
-  return foundClient;
-}
-
-function broadcastRoom() {
-  const data = {
-    id: 'room',
-    room: {
-      state: room.getState(),
-      players: [],
-    },
-  };
-
-  room.getPlayers().forEach((player) => {
-    data.room.players.push(player.toObject());
-  });
-
-  wss.clients.forEach((ws) => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
-  });
-}
-
-function broadcastLog(message: string): void {
-  wss.clients.forEach((ws) => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ id: 'log', message }));
-    }
-  });
-}
-
-function broadcastGame(): void {
-  wss.clients.forEach((ws) => {
-    if (ws.readyState === WebSocket.OPEN) {
-      sendGame(ws);
-    }
-  });
-}
-
-function sendPlayer(client) {
-  const player = wsPlayerMap.get(client);
-
-  const data = {
-    id: 'player',
-    player: player.toObject(),
-  };
-
-  client.send(JSON.stringify(data));
-}
-
-function sendGame(client: WebSocket): void {
-  const player = wsPlayerMap.get(client);
-  if (!player) {
-    return;
-  }
-
-  const game = room.getGame();
-
-  const enemies = game
-    .getPlayers()
-    .filter((enemy) => {
-      return enemy.getId() !== player.getId() && enemy.isNotObverser();
-    })
-    .map((enemy) => {
-      const hand = game.getPlayerHand(enemy);
-      const cardCount = hand.size();
-
-      return {
-        cardCount,
-      };
-    });
-
-  client.send(
-    JSON.stringify({
-      id: 'game',
-      game: game.toObject(),
-      player: player.toObject(),
-      hand: game.getPlayerHand(player).toObject(),
-      enemies,
-    }),
-  );
 }

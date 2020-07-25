@@ -21,6 +21,11 @@ export enum CardRank {
   Ace = 14,
 }
 
+export interface CardDto {
+  suite: number;
+  rank: number;
+}
+
 export class Card {
   private suite: CardSuite;
   private rank: CardRank;
@@ -50,7 +55,7 @@ export class Card {
     return this.rank < other.rank;
   }
 
-  toObject(): object {
+  toObject(): CardDto {
     return {
       rank: this.rank,
       suite: this.suite,

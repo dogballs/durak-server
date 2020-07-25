@@ -1,6 +1,9 @@
-import { Card } from './Card';
+import { Card, CardDto } from './Card';
+import * as config from './config';
 
-export const HAND_CARDS_COUNT = 6;
+export interface HandDto {
+  cards: CardDto[];
+}
 
 export class Hand {
   private cards: Card[] = [];
@@ -42,18 +45,18 @@ export class Hand {
   }
 
   tillFullCount(): number {
-    if (this.cards.length >= HAND_CARDS_COUNT) {
+    if (this.cards.length >= config.HAND_MAX_CARDS) {
       return 0;
     }
 
-    return HAND_CARDS_COUNT - this.cards.length;
+    return config.HAND_MAX_CARDS - this.cards.length;
   }
 
   size(): number {
     return this.cards.length;
   }
 
-  toObject(): object {
+  toObject(): HandDto {
     return {
       cards: this.cards.map((card) => card.toObject()),
     };

@@ -1,14 +1,16 @@
-import { Card } from './Card';
+import { Card, CardDto } from './Card';
+import * as config from './config';
 
-const ATTACK_ROUND_MAX_PAIRS = 6;
-
-type DefenceCard = Card | null;
+export interface RoundDto {
+  attackCards: CardDto[];
+  defenceCards: CardDto[];
+}
 
 export class Round {
   private trumpCard: Card = null;
   private attackCards: Card[] = [];
-  private defenceCards: DefenceCard[] = [];
-  private maxCards: number = ATTACK_ROUND_MAX_PAIRS;
+  private defenceCards: Card[] = [];
+  private maxCards: number = config.ROUND_MAX_CARDS;
 
   reset(trumpCard: Card, maxCards: number): void {
     this.trumpCard = trumpCard;
@@ -21,7 +23,7 @@ export class Round {
     this.trumpCard = null;
     this.attackCards = [];
     this.defenceCards = [];
-    this.maxCards = ATTACK_ROUND_MAX_PAIRS;
+    this.maxCards = config.ROUND_MAX_CARDS;
   }
 
   attack(attackCard: Card): boolean {
@@ -99,7 +101,7 @@ export class Round {
     return this.attackCards.length === 0 && this.defenceCards.length === 0;
   }
 
-  toObject(): object {
+  toObject(): RoundDto {
     return {
       attackCards: this.attackCards.map((card) => card.toObject()),
       defenceCards: this.defenceCards.map((card) => card.toObject()),

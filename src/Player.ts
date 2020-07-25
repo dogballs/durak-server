@@ -4,15 +4,22 @@ export enum PlayerRole {
   Observer,
 }
 
+export interface PlayerDto {
+  id: number;
+  role: number;
+  name: string;
+  lossCount: number;
+}
+
 export class Player {
   private id: number;
   private name: string;
   private role = PlayerRole.Regular;
   private lossCount = 0;
 
-  constructor(id: number, name = `Игрок #${id}`) {
+  constructor(id: number, name: string) {
     this.id = id;
-    this.name = name;
+    this.name = name || `Игрок #${id}`;
   }
 
   getId(): number {
@@ -64,7 +71,7 @@ export class Player {
     }
   }
 
-  toObject(): object {
+  toObject(): PlayerDto {
     return {
       id: this.id,
       name: this.name,
