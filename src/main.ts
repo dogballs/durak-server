@@ -5,6 +5,7 @@ import * as cors from 'cors';
 import * as WebSocket from 'ws';
 
 import { Card } from './Card';
+import { Player } from './Player';
 import { Room } from './Room';
 import { RoomController } from './RoomController';
 import { StringIdGenerator } from './StringIdGenerator';
@@ -17,6 +18,7 @@ app.use(cors());
 const port = Number(process.env.PORT) || 3000;
 
 const roomMap = new Map<string, Room>();
+const clientPlayerMap = new Map<WebSocket, Player>();
 
 app.post('/room', (req, res) => {
   const roomId = StringIdGenerator.generateUnique(
@@ -77,7 +79,12 @@ wsServer.on('connection', (ws, request) => {
 
   const room = roomMap.get(roomId);
 
-  const roomController = new RoomController(room, wsServer, ws);
+  const roomController = new RoomController(
+    room,
+    clientPlayerMap,
+    wsServer,
+    ws,
+  );
   room.touch();
 
   ws.on('upgrade', () => {

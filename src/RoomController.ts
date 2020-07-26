@@ -7,10 +7,16 @@ export class RoomController {
   private room: Room;
   private server: WebSocket.Server;
   private client: WebSocket;
-  private clientPlayerMap = new Map<WebSocket, Player>();
+  private clientPlayerMap: Map<WebSocket, Player>;
 
-  constructor(room: Room, server: WebSocket.Server, client: WebSocket) {
+  constructor(
+    room: Room,
+    clientPlayerMap: Map<WebSocket, Player>,
+    server: WebSocket.Server,
+    client: WebSocket,
+  ) {
     this.room = room;
+    this.clientPlayerMap = clientPlayerMap;
     this.server = server;
     this.client = client;
   }
