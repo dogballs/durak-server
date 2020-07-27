@@ -202,6 +202,7 @@ export class RoomController {
         const cardCount = hand.size();
 
         return {
+          id: enemy.getId(),
           cardCount,
         };
       });

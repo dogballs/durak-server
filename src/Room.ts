@@ -28,6 +28,8 @@ export class Room {
       player.setRole(PlayerRole.Host);
     } else if (this.state === RoomState.Playing) {
       player.setRole(PlayerRole.Observer);
+    } else if (this.players.length >= config.ROOM_MAX_PLAYERS) {
+      player.setRole(PlayerRole.Observer);
     }
 
     this.players.push(player);
@@ -61,7 +63,7 @@ export class Room {
     }
 
     const isInitialized = this.game.init(
-      this.players.slice(),
+      this.players.slice(0, config.ROOM_MAX_PLAYERS),
       this.lastLossPlayerId,
     );
     if (!isInitialized) {
@@ -126,8 +128,12 @@ export class Room {
   }
 
   private upgradeObserverPlayers(): void {
-    this.players.forEach((player) => {
-      if (player.isObverser() && this.state < RoomState.Playing) {
+    this.players.forEach((player, playerIndex) => {
+      if (
+        player.isObverser() &&
+        this.state < RoomState.Playing &&
+        playerIndex + 1 <= config.ROOM_MAX_PLAYERS
+      ) {
         player.setRole(PlayerRole.Regular);
       }
     });
