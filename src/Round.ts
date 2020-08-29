@@ -23,7 +23,7 @@ export class Round {
     this.trumpCard = null;
     this.attackCards = [];
     this.defenceCards = [];
-    this.maxCards = config.ROUND_MAX_CARDS;
+    this.maxCards = config.ROUND_FIRST_MAX_CARDS;
   }
 
   attack(attackCard: Card): boolean {

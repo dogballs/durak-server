@@ -61,14 +61,4 @@ export class Card {
       suite: this.suite,
     };
   }
-
-  static makeDupList(suite: CardSuite, rank: CardRank, count: number): Card[] {
-    const list: Card[] = [];
-
-    for (let i = 0; i < count; i++) {
-      list.push(new Card(suite, rank));
-    }
-
-    return list;
-  }
 }

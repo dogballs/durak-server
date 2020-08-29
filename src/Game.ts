@@ -38,7 +38,6 @@ export class Game {
   private discard = new Deck();
   private round = new Round();
   private trumpCard: Card = null;
-  private roundIndex = -1;
   private attackerIndex = -1;
   private defenderIndex = -1;
   private passerIndex = -1;
@@ -57,7 +56,6 @@ export class Game {
     this.discard.clear();
     this.round.clear();
     this.trumpCard = null;
-    this.roundIndex = -1;
     this.attackerIndex = -1;
     this.passerIndex = -1;
     this.defenderIndex = -1;
@@ -69,7 +67,7 @@ export class Game {
       return false;
     }
 
-    this.players = players;
+    this.players = players.slice();
 
     for (let i = 0; i < this.players.length; i++) {
       const hand = new Hand();
@@ -107,6 +105,7 @@ export class Game {
       for (let handIndex = 0; handIndex < this.hands.length; handIndex++) {
         const hand = this.hands[handIndex];
         const cards = hand.getCards();
+
         for (const card of cards) {
           if (card.isSameSuite(this.trumpCard)) {
             if (
@@ -127,6 +126,8 @@ export class Game {
       this.updateAttackIndex(attackerIndex);
     }
 
+    this.round.reset(this.trumpCard, config.ROUND_FIRST_MAX_CARDS);
+
     this.state = GameState.Attack;
 
     return true;
@@ -139,10 +140,9 @@ export class Game {
     ) {
       if (this.state === GameState.Attack) {
         // Starts a first attack in a new round
-        if (this.round.isEmpty()) {
-          this.roundIndex += 1;
-          this.resetRound();
-        }
+        // if (this.round.isEmpty()) {
+        // this.resetRound();
+        // }
 
         const attackerHand = this.hands[this.currentIndex];
         if (!attackerHand.has(card)) {
@@ -268,20 +268,20 @@ export class Game {
     const hand = this.hands[this.defenderIndex];
     hand.push(...this.round.getAttackCards());
     hand.push(...this.round.getDefenceCards());
-    this.resetRound();
     this.resetPasses();
     this.refillHands();
     this.updatePlayers();
+    this.resetRound();
     this.checkEnded();
   }
 
   private finishRoundDefended(): void {
     this.discard.push(...this.round.getAttackCards());
     this.discard.push(...this.round.getDefenceCards());
-    this.resetRound();
     this.resetPasses();
     this.refillHands();
     this.updatePlayers();
+    this.resetRound();
     this.checkEnded();
   }
 

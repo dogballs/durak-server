@@ -31,17 +31,16 @@ export class Hand {
   }
 
   remove(cardToRemove: Card): boolean {
-    let wasRemoved = false;
-
-    this.cards = this.cards.filter((card) => {
-      const isEqual = card.isEqual(cardToRemove);
-      if (isEqual) {
-        wasRemoved = true;
-      }
-      return !isEqual;
+    const removeIndex = this.cards.findIndex((card) => {
+      return card.isEqual(cardToRemove);
     });
+    if (removeIndex === -1) {
+      return false;
+    }
 
-    return wasRemoved;
+    this.cards.splice(removeIndex, 1);
+
+    return true;
   }
 
   tillFullCount(): number {
