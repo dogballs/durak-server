@@ -134,6 +134,9 @@ wsServer.on('connection', (ws, request) => {
       case 'pass':
         roomController.pass();
         break;
+      case 'ping':
+        roomController.ping();
+        break;
       default:
         return;
     }

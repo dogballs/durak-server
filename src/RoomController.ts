@@ -144,6 +144,10 @@ export class RoomController {
     this.broadcastGame();
   }
 
+  ping(): void {
+    this.client.send(JSON.stringify({ id: 'pong' }));
+  }
+
   private findClientByPlayer(playerToFind: Player): WebSocket {
     let foundClient = undefined;
 
