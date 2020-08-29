@@ -1,3 +1,6 @@
+import * as assert from 'assert';
+
+import { StockFactory, ShuffleStockFactory } from './stock';
 import { Card, CardDto } from './Card';
 import { Deck } from './Deck';
 import { Hand } from './Hand';
@@ -30,14 +33,20 @@ export class Game {
   private players: Player[] = [];
   private hands: Hand[] = [];
   private passes: boolean[] = [];
+  private stockFactory: StockFactory;
   private stock = new Deck();
   private discard = new Deck();
   private round = new Round();
   private trumpCard: Card = null;
+  private roundIndex = -1;
   private attackerIndex = -1;
   private defenderIndex = -1;
   private passerIndex = -1;
   private currentIndex = -1;
+
+  constructor(stockFactory: StockFactory = new ShuffleStockFactory()) {
+    this.stockFactory = stockFactory;
+  }
 
   clear(): void {
     this.state = GameState.Idle;
@@ -48,6 +57,7 @@ export class Game {
     this.discard.clear();
     this.round.clear();
     this.trumpCard = null;
+    this.roundIndex = -1;
     this.attackerIndex = -1;
     this.passerIndex = -1;
     this.defenderIndex = -1;
@@ -68,10 +78,13 @@ export class Game {
       this.passes.push(false);
     }
 
-    this.stock.refill();
-    this.stock.shuffle();
-
+    this.stock = this.stockFactory.build();
     this.discard = new Deck();
+
+    assert(
+      this.stock.size() > this.hands.length * config.HAND_MAX_CARDS,
+      'Stock must have more cards than sum of all hands',
+    );
 
     for (let cardIndex = 0; cardIndex < config.HAND_MAX_CARDS; cardIndex++) {
       for (const hand of this.hands) {
@@ -84,8 +97,10 @@ export class Game {
 
     const lastLossPlayerIndex = this.getPlayerIndexById(lastLossPlayerId);
 
-    // Cant find lost player, select who attacks first by lowest trump
-    if (lastLossPlayerIndex === -1) {
+    if (lastLossPlayerIndex !== -1) {
+      this.updateAttackIndex(lastLossPlayerIndex - 1);
+    } else {
+      // Cant find lost player, select who attacks first by lowest trump
       let minTrumpHandCard: Card = null;
       let minTrumpHandIndex: number = null;
 
@@ -110,8 +125,6 @@ export class Game {
         attackerIndex = minTrumpHandIndex;
       }
       this.updateAttackIndex(attackerIndex);
-    } else {
-      this.updateAttackIndex(lastLossPlayerIndex + 1);
     }
 
     this.state = GameState.Attack;
@@ -127,6 +140,7 @@ export class Game {
       if (this.state === GameState.Attack) {
         // Starts a first attack in a new round
         if (this.round.isEmpty()) {
+          this.roundIndex += 1;
           this.resetRound();
         }
 
@@ -295,6 +309,12 @@ export class Game {
 
   private updateAttackIndex(expectedAttackerIndex: number): void {
     this.attackerIndex = expectedAttackerIndex % this.hands.length;
+
+    // Going backwards
+    if (this.attackerIndex < 0) {
+      this.attackerIndex = this.hands.length + this.attackerIndex;
+    }
+
     this.passerIndex = this.attackerIndex;
     this.defenderIndex = (this.attackerIndex + 1) % this.hands.length;
     this.currentIndex = this.attackerIndex;
