@@ -1,13 +1,13 @@
+import { Game } from './Game';
+import { Player, PlayerRole } from './Player';
+import * as config from './config';
+
 export enum RoomState {
   WaitingForHost = 0,
   WaitingForGuests = 1,
   WaitingForStart = 2,
   Playing = 3,
 }
-
-import { Game } from './Game';
-import { Player, PlayerRole } from './Player';
-import * as config from './config';
 
 export class Room {
   private state = RoomState.WaitingForHost;

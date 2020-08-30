@@ -96,7 +96,7 @@ wsServer.on('connection', (ws, request) => {
   });
 
   ws.on('message', (messageJSON: string) => {
-    console.log('client: message');
+    // console.log('client: message');
 
     let message = null;
     try {
@@ -108,7 +108,7 @@ wsServer.on('connection', (ws, request) => {
       return;
     }
 
-    console.log('message', message);
+    // console.log('message', message);
 
     switch (message.id) {
       case 'register':
