@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "tsc && node build/main.js",
+    "start": "tsc -p tsconfig.build.json && node build/main.js",
     "test": "tsc && tape build/**/*.test.js"
   },
   "author": "Michael Radionov (https://github.com/mradionov)",
