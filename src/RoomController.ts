@@ -196,10 +196,10 @@ export class RoomController {
 
     const game = this.room.getGame();
 
-    const enemies = game
+    const counters = game
       .getPlayers()
       .filter((enemy) => {
-        return enemy.getId() !== player.getId() && enemy.isNotObverser();
+        return enemy.isNotObverser();
       })
       .map((enemy) => {
         const hand = game.getPlayerHand(enemy);
@@ -217,7 +217,7 @@ export class RoomController {
         game: game.toObject(),
         player: player.toObject(),
         hand: game.getPlayerHand(player).toObject(),
-        enemies,
+        counters,
       }),
     );
   }
