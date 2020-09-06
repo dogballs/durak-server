@@ -130,12 +130,12 @@ test('first round attack max 5 cards', (t) => {
           CardFactory.make(CardSuite.Spades, CardRank.R6), // p1
           CardFactory.make(CardSuite.Spades, CardRank.R7), // p2
         ],
-        5,
+        6,
       ),
-      CardFactory.make(CardSuite.Spades, CardRank.R6), // p1
-      CardFactory.make(CardSuite.Hearts, CardRank.R7), // p2
+      // p1's first attack, p2 takes
       ...CardFactory.makeDupList(CardSuite.Spades, CardRank.R6, 5), // p1
-      ...CardFactory.makeDupList(CardSuite.Hearts, CardRank.R7, 5), // p2
+      // p1's second attack, p2 defends
+      ...CardFactory.makeDupList(CardSuite.Spades, CardRank.R7, 5), // p1
       CardFactory.make(CardSuite.Spades, CardRank.Ace), // trump
     ].reverse(),
   );
@@ -148,20 +148,58 @@ test('first round attack max 5 cards', (t) => {
   t.equal(gameDto.attackerId, 3);
   t.equal(gameDto.currentId, 3);
   t.equal(gameDto.defenderId, 7);
+  t.equal(gameDto.stockCount, 11);
 
-  for (let i = 0; i < 5; i++) {
+  // p1 attacks
+  // p2 takes, max 5 cards
+
+  t.ok(game.act(CardFactory.make(CardSuite.Spades, CardRank.R6)));
+  t.ok(game.take());
+  for (let i = 0; i < 4; i++) {
     t.ok(game.act(CardFactory.make(CardSuite.Spades, CardRank.R6)));
-    t.ok(game.act(CardFactory.make(CardSuite.Spades, CardRank.R7)));
   }
+  t.notOk(game.act(CardFactory.make(CardSuite.Spades, CardRank.R6)));
+  t.ok(game.pass());
 
   gameDto = game.toObject();
   t.equal(gameDto.attackerId, 3);
   t.equal(gameDto.currentId, 3);
   t.equal(gameDto.defenderId, 7);
   t.equal(gameDto.discardCount, 0);
-  t.equal(gameDto.state, GameState.DefenceShowcase);
-  t.equal(gameDto.stockCount, 11);
+  t.equal(gameDto.stockCount, 6);
+  t.equal(gameDto.state, GameState.Attack);
 
+  // p1 attacks
+  // p2 defends, max 5 cards
+
+  for (let i = 0; i < 5; i++) {
+    t.ok(game.act(CardFactory.make(CardSuite.Spades, CardRank.R6)));
+    t.ok(game.act(CardFactory.make(CardSuite.Spades, CardRank.R7)));
+  }
+  t.notOk(game.act(CardFactory.make(CardSuite.Spades, CardRank.R6)));
+
+  gameDto = game.toObject();
+  t.equal(gameDto.state, GameState.DefenceShowcase);
+
+  t.ok(game.pass());
+
+  gameDto = game.toObject();
+
+  t.equal(gameDto.attackerId, 7);
+  t.equal(gameDto.currentId, 7);
+  t.equal(gameDto.defenderId, 3);
+  t.equal(gameDto.discardCount, 10);
+  t.equal(gameDto.state, GameState.Attack);
+  t.equal(gameDto.stockCount, 1);
+
+  // p2 attacks, max cards 6
+
+  for (let i = 0; i < 5; i++) {
+    t.ok(game.act(CardFactory.make(CardSuite.Spades, CardRank.R6)));
+    t.ok(game.act(CardFactory.make(CardSuite.Spades, CardRank.R7)));
+  }
+  t.ok(game.act(CardFactory.make(CardSuite.Spades, CardRank.R7)));
+  t.ok(game.take());
   t.ok(game.pass());
 
   gameDto = game.toObject();
@@ -170,23 +208,7 @@ test('first round attack max 5 cards', (t) => {
   t.equal(gameDto.defenderId, 3);
   t.equal(gameDto.discardCount, 10);
   t.equal(gameDto.state, GameState.Attack);
-  t.equal(gameDto.stockCount, 1);
-
-  for (let i = 0; i < 6; i++) {
-    t.ok(game.act(CardFactory.make(CardSuite.Hearts, CardRank.R7)));
-    t.ok(game.act(CardFactory.make(CardSuite.Spades, CardRank.R6)));
-  }
-
-  gameDto = game.toObject();
-  t.equal(gameDto.state, GameState.DefenceShowcase);
-  t.equal(gameDto.discardCount, 10);
-  t.equal(gameDto.stockCount, 1);
-
-  t.ok(game.pass());
-
-  gameDto = game.toObject();
-  t.equal(gameDto.state, GameState.Ended);
-  t.equal(players[1].toObject().lossCount, 1);
+  t.equal(gameDto.stockCount, 0);
 
   t.end();
 });

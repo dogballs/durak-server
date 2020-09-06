@@ -121,7 +121,7 @@ export class Game {
       this.updateAttackerId(attackerId);
     }
 
-    this.round.reset(this.trumpCard, config.ROUND_FIRST_MAX_CARDS);
+    this.resetRound();
 
     this.state = GameState.Attack;
 
@@ -351,7 +351,17 @@ export class Game {
     if (!defenderHand) {
       return false;
     }
-    this.round.reset(this.trumpCard, defenderHand.size());
+
+    let roundMaxCards = config.ROUND_MAX_CARDS;
+    if (this.discard.size() === 0) {
+      roundMaxCards = config.SHORT_ROUND_MAX_CARDS;
+    }
+    if (roundMaxCards > defenderHand.size()) {
+      roundMaxCards = defenderHand.size();
+    }
+
+    this.round.reset(this.trumpCard, roundMaxCards);
+
     return true;
   }
 
