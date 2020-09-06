@@ -30,6 +30,10 @@ export class Player {
     return this.name;
   }
 
+  getRole(): PlayerRole {
+    return this.role;
+  }
+
   setRole(role: PlayerRole): void {
     this.role = role;
   }

@@ -196,20 +196,16 @@ export class RoomController {
 
     const game = this.room.getGame();
 
-    const counters = game
-      .getPlayers()
-      .filter((enemy) => {
-        return enemy.isNotObverser();
-      })
-      .map((enemy) => {
-        const hand = game.getPlayerHand(enemy);
-        const cardCount = hand.size();
+    const counters = game.getPlayers().map((enemy) => {
+      const hand = game.getPlayerHand(enemy);
+      const cardCount = hand.size();
 
-        return {
-          id: enemy.getId(),
-          cardCount,
-        };
-      });
+      return {
+        id: enemy.getId(),
+        role: enemy.getRole(),
+        cardCount,
+      };
+    });
 
     client.send(
       JSON.stringify({
