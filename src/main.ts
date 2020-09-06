@@ -35,6 +35,10 @@ app.post('/room', (req, res) => {
   });
 });
 
+app.get('/health', (req, res) => {
+  res.end();
+});
+
 const wsServer = new WebSocket.Server({
   noServer: true,
 });
