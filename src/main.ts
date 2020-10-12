@@ -147,6 +147,9 @@ wsServer.on('connection', (ws, request) => {
       case 'playerMoveDown':
         roomController.playerMoveDown(message.playerId);
         break;
+      case 'playerSetLossCount':
+        roomController.playerSetLossCount(message.playerId, message.lossCount);
+        break;
       default:
         return;
     }

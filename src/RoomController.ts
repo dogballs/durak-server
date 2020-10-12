@@ -166,6 +166,16 @@ export class RoomController {
     this.broadcastRoom();
   }
 
+  playerSetLossCount(playerId: number, lossCount: number): void {
+    const hasChanged = this.room.setPlayerLossCount(playerId, lossCount);
+    if (!hasChanged) {
+      return;
+    }
+
+    this.broadcastRoom();
+    this.sendPlayer(this.client);
+  }
+
   private findClientByPlayer(playerToFind: Player): WebSocket {
     let foundClient = undefined;
 

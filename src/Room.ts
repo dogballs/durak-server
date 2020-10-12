@@ -99,6 +99,22 @@ export class Room {
     return true;
   }
 
+  setPlayerLossCount(playerId: number, lossCount: number): boolean {
+    const player = this.players.find((player) => player.getId() === playerId);
+
+    if (player === undefined) {
+      return false;
+    }
+
+    if (lossCount < 0 || lossCount > 999) {
+      return false;
+    }
+
+    player.setLossCount(lossCount);
+
+    return true;
+  }
+
   startGame(): boolean {
     if (this.state !== RoomState.WaitingForStart) {
       return false;

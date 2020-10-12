@@ -62,6 +62,10 @@ export class Player {
     this.lossCount += 1;
   }
 
+  setLossCount(lossCount: number): void {
+    this.lossCount = lossCount;
+  }
+
   getDisplayRole(): string {
     switch (this.role) {
       case 0:
