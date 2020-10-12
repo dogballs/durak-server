@@ -1,8 +1,14 @@
 # durak-server
 
-> Server for [Durak](https://en.wikipedia.org/wiki/Durak) multiplayer game
+### [Play in browser](https://dogballs-durak.netlify.app/)
 
-Implements game logic within the following constraints:
+Note: interface is in russian only
+
+## Description
+
+Server for [Durak](https://en.wikipedia.org/wiki/Durak) multiplayer game
+
+## Features
 
 - Host multiple rooms
 - 36-card deck
@@ -11,7 +17,7 @@ Implements game logic within the following constraints:
 - Loser stars as a defender in next game
 - Everybody can help the attack with any card
 
-### Development
+## Development
 
 Install dependencies:
 

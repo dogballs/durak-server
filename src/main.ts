@@ -141,6 +141,12 @@ wsServer.on('connection', (ws, request) => {
       case 'ping':
         roomController.ping();
         break;
+      case 'playerMoveUp':
+        roomController.playerMoveUp(message.playerId);
+        break;
+      case 'playerMoveDown':
+        roomController.playerMoveDown(message.playerId);
+        break;
       default:
         return;
     }

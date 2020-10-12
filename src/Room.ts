@@ -57,6 +57,48 @@ export class Room {
     this.ensureWaitingState();
   }
 
+  movePlayerUp(playerId: number): boolean {
+    const playerIndex = this.players.findIndex(
+      (player) => player.getId() === playerId,
+    );
+
+    if (playerIndex === -1) {
+      return false;
+    }
+
+    // Already at the top
+    if (playerIndex === 0) {
+      return false;
+    }
+
+    const movedPlayers = this.players.splice(playerIndex, 1);
+
+    this.players.splice(playerIndex - 1, 0, ...movedPlayers);
+
+    return true;
+  }
+
+  movePlayerDown(playerId: number): boolean {
+    const playerIndex = this.players.findIndex(
+      (player) => player.getId() === playerId,
+    );
+
+    if (playerIndex === -1) {
+      return false;
+    }
+
+    // Already at the top
+    if (playerIndex === this.players.length - 1) {
+      return false;
+    }
+
+    const movedPlayers = this.players.splice(playerIndex, 1);
+
+    this.players.splice(playerIndex + 1, 0, ...movedPlayers);
+
+    return true;
+  }
+
   startGame(): boolean {
     if (this.state !== RoomState.WaitingForStart) {
       return false;

@@ -148,6 +148,24 @@ export class RoomController {
     this.client.send(JSON.stringify({ id: 'pong' }));
   }
 
+  playerMoveUp(playerId: number): void {
+    const hasMoved = this.room.movePlayerUp(playerId);
+    if (!hasMoved) {
+      return;
+    }
+
+    this.broadcastRoom();
+  }
+
+  playerMoveDown(playerId: number): void {
+    const hasMoved = this.room.movePlayerDown(playerId);
+    if (!hasMoved) {
+      return;
+    }
+
+    this.broadcastRoom();
+  }
+
   private findClientByPlayer(playerToFind: Player): WebSocket {
     let foundClient = undefined;
 
