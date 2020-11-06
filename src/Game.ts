@@ -1,11 +1,12 @@
 import * as assert from 'assert';
 
+import { LastLossAttackerSelector, LowestTrumpAttackerSelector } from './game';
 import { StockFactory, ShuffleStockFactory } from './stock';
 import { Card, CardDto } from './Card';
 import { Deck } from './Deck';
 import { Hand } from './Hand';
 import { Round, RoundDto } from './Round';
-import { Player, PlayerDto } from './Player';
+import { Player, PlayerDto, PLAYER_MISSING_ID } from './Player';
 import { PlayerList } from './PlayerList';
 import * as config from './config';
 
@@ -40,10 +41,10 @@ export class Game {
   private playerList = new PlayerList();
   private handMap: Map<number, Hand> = new Map();
   private passMap: Map<number, boolean> = new Map();
-  private attackerId = -1;
-  private defenderId = -1;
-  private passerId = -1;
-  private currentId = -1;
+  private attackerId = PLAYER_MISSING_ID;
+  private defenderId = PLAYER_MISSING_ID;
+  private passerId = PLAYER_MISSING_ID;
+  private currentId = PLAYER_MISSING_ID;
 
   constructor(stockFactory: StockFactory = new ShuffleStockFactory()) {
     this.stockFactory = stockFactory;
@@ -58,13 +59,13 @@ export class Game {
     this.playerList.clear();
     this.handMap.clear();
     this.passMap.clear();
-    this.attackerId = -1;
-    this.defenderId = -1;
-    this.passerId = -1;
-    this.currentId = -1;
+    this.attackerId = PLAYER_MISSING_ID;
+    this.defenderId = PLAYER_MISSING_ID;
+    this.passerId = PLAYER_MISSING_ID;
+    this.currentId = PLAYER_MISSING_ID;
   }
 
-  init(players: Player[], lastLossPlayerId = -1): boolean {
+  init(players: Player[], lastLossPlayerId = PLAYER_MISSING_ID): boolean {
     if (this.state !== GameState.Idle) {
       return false;
     }
@@ -93,35 +94,28 @@ export class Game {
 
     this.trumpCard = this.stock.peekFront();
 
-    if (this.playerList.has(lastLossPlayerId)) {
-      this.updateAttackerId(this.getPrevPlayerId(lastLossPlayerId));
-    } else {
-      // Cant find lost player, select who attacks first by lowest trump
-      let minTrumpHandCard: Card = null;
-      let minTrumpPlayerId: number = null;
+    const attackerSelectors = [];
+    attackerSelectors.push(
+      new LastLossAttackerSelector(this.playerList, lastLossPlayerId),
+    );
+    attackerSelectors.push(
+      new LowestTrumpAttackerSelector(
+        this.playerList,
+        this.handMap,
+        this.trumpCard,
+      ),
+    );
 
-      this.handMap.forEach((hand, playerId) => {
-        const cards = hand.getCards();
+    for (const selector of attackerSelectors) {
+      const attackerId = selector.select();
 
-        for (const card of cards) {
-          if (card.isSameSuite(this.trumpCard)) {
-            if (
-              minTrumpHandCard === null ||
-              card.isLowerRankThan(minTrumpHandCard)
-            ) {
-              minTrumpHandCard = card;
-              minTrumpPlayerId = playerId;
-            }
-          }
-        }
-      });
-
-      let attackerId = this.playerList.firstId();
-      if (minTrumpPlayerId !== null) {
-        attackerId = minTrumpPlayerId;
+      if (attackerId !== PLAYER_MISSING_ID) {
+        this.updateAttackerId(attackerId);
+        break;
       }
-      this.updateAttackerId(attackerId);
     }
+
+    assert(this.attackerId !== PLAYER_MISSING_ID, 'Attacked must be selected');
 
     this.resetRound();
 
@@ -226,7 +220,7 @@ export class Game {
       const nextPasserId = this.getNextPasserId(this.currentId);
 
       // Count not find next passer - all players have passed, end round
-      if (nextPasserId === -1) {
+      if (nextPasserId === PLAYER_MISSING_ID) {
         this.discardDefenceCards();
         this.finishRound(this.defenderId);
         return true;
@@ -243,7 +237,7 @@ export class Game {
       this.passMap.set(this.currentId, true);
 
       const nextPasserId = this.getNextPasserId(this.currentId);
-      if (nextPasserId === -1) {
+      if (nextPasserId === PLAYER_MISSING_ID) {
         const prevState = this.state;
 
         this.state = GameState.Attack;
@@ -426,11 +420,7 @@ export class Game {
       }
     }
 
-    return -1;
-  }
-
-  private getPrevPlayerId(id: number): number {
-    return this.playerList.prevId(id);
+    return PLAYER_MISSING_ID;
   }
 
   private getNextPlayerId(id: number): number {

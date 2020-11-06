@@ -1,5 +1,7 @@
 export type PlayerId = number;
 
+export const PLAYER_MISSING_ID = -1;
+
 export enum PlayerRole {
   Host,
   Regular,

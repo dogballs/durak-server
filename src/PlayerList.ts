@@ -1,4 +1,4 @@
-import { Player, PlayerId } from './Player';
+import { Player, PlayerId, PLAYER_MISSING_ID } from './Player';
 
 export class PlayerList {
   private map = new Map<PlayerId, Player>();
@@ -26,7 +26,7 @@ export class PlayerList {
 
     const index = ids.indexOf(id);
     if (index === -1) {
-      return -1;
+      return PLAYER_MISSING_ID;
     }
 
     let prevIndex = index - 1;
@@ -44,7 +44,7 @@ export class PlayerList {
 
     const index = ids.indexOf(id);
     if (index === -1) {
-      return -1;
+      return PLAYER_MISSING_ID;
     }
 
     const nextIndex = (index + 1) % ids.length;
