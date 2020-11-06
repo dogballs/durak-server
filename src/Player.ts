@@ -1,3 +1,5 @@
+export type PlayerId = number;
+
 export enum PlayerRole {
   Host,
   Regular,
@@ -12,17 +14,17 @@ export interface PlayerDto {
 }
 
 export class Player {
-  private id: number;
+  private id: PlayerId;
   private name: string;
   private role = PlayerRole.Regular;
   private lossCount = 0;
 
-  constructor(id: number, name: string) {
+  constructor(id: PlayerId, name: string) {
     this.id = id;
     this.name = name || `Игрок #${id}`;
   }
 
-  getId(): number {
+  getId(): PlayerId {
     return this.id;
   }
 

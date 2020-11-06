@@ -6,6 +6,7 @@ import { Deck } from './Deck';
 import { Hand } from './Hand';
 import { Round, RoundDto } from './Round';
 import { Player, PlayerDto } from './Player';
+import { PlayerList } from './PlayerList';
 import * as config from './config';
 
 export enum GameState {
@@ -36,7 +37,7 @@ export class Game {
   private discard = new Deck();
   private round = new Round();
   private trumpCard: Card = null;
-  private playerMap: Map<number, Player> = new Map();
+  private playerList = new PlayerList();
   private handMap: Map<number, Hand> = new Map();
   private passMap: Map<number, boolean> = new Map();
   private attackerId = -1;
@@ -54,7 +55,7 @@ export class Game {
     this.discard.clear();
     this.round.clear();
     this.trumpCard = null;
-    this.playerMap.clear();
+    this.playerList.clear();
     this.handMap.clear();
     this.passMap.clear();
     this.attackerId = -1;
@@ -68,8 +69,9 @@ export class Game {
       return false;
     }
 
+    this.playerList.reset(players);
+
     players.forEach((player) => {
-      this.playerMap.set(player.getId(), player);
       this.handMap.set(player.getId(), new Hand());
       this.passMap.set(player.getId(), false);
     });
@@ -91,7 +93,7 @@ export class Game {
 
     this.trumpCard = this.stock.peekFront();
 
-    if (this.playerMap.has(lastLossPlayerId)) {
+    if (this.playerList.has(lastLossPlayerId)) {
       this.updateAttackerId(this.getPrevPlayerId(lastLossPlayerId));
     } else {
       // Cant find lost player, select who attacks first by lowest trump
@@ -114,7 +116,7 @@ export class Game {
         }
       });
 
-      let attackerId = this.playerMap.keys().next().value;
+      let attackerId = this.playerList.firstId();
       if (minTrumpPlayerId !== null) {
         attackerId = minTrumpPlayerId;
       }
@@ -308,7 +310,7 @@ export class Game {
 
       // Remove all player related entities
       this.handMap.delete(id);
-      this.playerMap.delete(id);
+      this.playerList.delete(id);
       this.passMap.delete(id);
     });
 
@@ -370,12 +372,12 @@ export class Game {
       return;
     }
 
-    if (this.playerMap.size > 1) {
+    if (this.playerList.size() > 1) {
       return;
     }
 
-    if (this.playerMap.size === 1) {
-      const player = this.playerMap.values().next().value;
+    if (this.playerList.size() === 1) {
+      const player = this.playerList.first();
       player.addLoss();
       this.round.clear();
       this.state = GameState.Ended;
@@ -389,7 +391,7 @@ export class Game {
   }
 
   private updateAttackerId(expectedAttackerId: number): void {
-    if (this.playerMap.has(expectedAttackerId)) {
+    if (this.playerList.has(expectedAttackerId)) {
       this.attackerId = expectedAttackerId;
     } else {
       this.attackerId = this.getNextPlayerId(expectedAttackerId);
@@ -428,33 +430,11 @@ export class Game {
   }
 
   private getPrevPlayerId(id: number): number {
-    const ids = Array.from(this.playerMap.keys());
-
-    const index = ids.indexOf(id);
-    if (index === -1) {
-      return index;
-    }
-
-    let prevIndex = index - 1;
-    if (prevIndex < 0) {
-      prevIndex = ids.length + prevIndex;
-    }
-
-    const prevId = ids[prevIndex];
-    return prevId;
+    return this.playerList.prevId(id);
   }
 
   private getNextPlayerId(id: number): number {
-    const ids = Array.from(this.playerMap.keys());
-
-    const index = ids.indexOf(id);
-    if (index === -1) {
-      return index;
-    }
-
-    const nextIndex = (index + 1) % ids.length;
-    const nextId = ids[nextIndex];
-    return nextId;
+    return this.playerList.nextId(id);
   }
 
   private resetPasses(): void {
@@ -468,11 +448,11 @@ export class Game {
   }
 
   isEndedInLoss(): boolean {
-    return this.isEnded() && this.playerMap.size === 1;
+    return this.isEnded() && this.playerList.size() === 1;
   }
 
   getPlayers(): Player[] {
-    return Array.from(this.playerMap.values());
+    return Array.from(this.playerList.players());
   }
 
   getPlayerHand(player: Player): Hand {
@@ -500,9 +480,7 @@ export class Game {
 
   toObject(): GameDto {
     return {
-      players: Array.from(this.playerMap.values()).map((player) =>
-        player.toObject(),
-      ),
+      players: this.playerList.players().map((player) => player.toObject()),
       state: this.state,
       trumpCard: this.trumpCard?.toObject(),
       stockCount: this.stock.size(),
