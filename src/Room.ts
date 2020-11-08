@@ -15,7 +15,6 @@ export class Room {
   private players: Player[] = [];
   private playerIdCounter = 0;
   private lastLossPlayerId = -1;
-  private lastTouch: number = new Date().getTime();
 
   generatePlayerId(): number {
     const id = this.playerIdCounter;
@@ -230,13 +229,5 @@ export class Room {
 
   getHostPlayer(): Player {
     return this.players.find((player) => player.isHost());
-  }
-
-  touch(): void {
-    this.lastTouch = new Date().getTime();
-  }
-
-  getLastTouch(): number {
-    return this.lastTouch;
   }
 }

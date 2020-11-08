@@ -9,6 +9,7 @@ import { Player } from './Player';
 import { Room } from './Room';
 import { RoomController } from './RoomController';
 import { StringIdGenerator } from './StringIdGenerator';
+import { ExpirationTimer } from './ExpirationTimer';
 import * as config from './config';
 
 const app = express();
@@ -18,6 +19,7 @@ app.use(cors());
 const port = Number(process.env.PORT) || 3000;
 
 const roomMap = new Map<string, Room>();
+const roomExpirationMap = new Map<string, ExpirationTimer>();
 const clientPlayerMap = new Map<WebSocket, Player>();
 
 app.post('/room', (req, res) => {
@@ -27,6 +29,11 @@ app.post('/room', (req, res) => {
   );
   const room = new Room();
   roomMap.set(roomId, room);
+
+  const roomExpirationTimer = new ExpirationTimer(
+    config.ROOM_EXPIRATION_SECONDS,
+  );
+  roomExpirationMap.set(roomId, roomExpirationTimer);
 
   cleanupRooms();
 
@@ -82,6 +89,7 @@ wsServer.on('connection', (ws, request) => {
   const roomId = parts[2];
 
   const room = roomMap.get(roomId);
+  const roomExpirationTimer = roomExpirationMap.get(roomId);
 
   const roomController = new RoomController(
     room,
@@ -89,7 +97,8 @@ wsServer.on('connection', (ws, request) => {
     wsServer,
     ws,
   );
-  room.touch();
+
+  roomExpirationTimer.touch();
 
   ws.on('upgrade', () => {
     console.log('client: upgrade');
@@ -154,18 +163,18 @@ wsServer.on('connection', (ws, request) => {
         return;
     }
 
-    room.touch();
+    roomExpirationTimer.touch();
   });
 
   ws.on('error', () => {
     console.log('client: error');
-    room.touch();
+    roomExpirationTimer.touch();
     roomController.error();
   });
 
   ws.on('close', () => {
     console.log('client: close');
-    room.touch();
+    roomExpirationTimer.touch();
     roomController.error();
   });
 });
@@ -177,14 +186,14 @@ function cleanupRooms(): void {
       return;
     }
 
-    const nowSeconds = new Date().getTime();
-    const lastActionSeconds = room.getLastTouch();
+    const expirationTimer = roomExpirationMap.get(id);
 
     // Room is still waiting its expiration time
-    if (nowSeconds < lastActionSeconds + config.ROOM_EXPIRATION_SECONDS) {
+    if (!expirationTimer.hasExpired()) {
       return;
     }
 
     roomMap.delete(id);
+    roomExpirationMap.delete(id);
   });
 }
