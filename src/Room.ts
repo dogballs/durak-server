@@ -1,5 +1,4 @@
-import { Game } from './Game';
-import { Player, PlayerRole } from './Player';
+import { Player, PlayerId, PlayerRole } from './Player';
 import * as config from './config';
 
 export enum RoomState {
@@ -10,33 +9,42 @@ export enum RoomState {
 }
 
 export class Room {
+  public lastLossPlayerId = -1;
   private state = RoomState.WaitingForHost;
-  private game = new Game();
   private players: Player[] = [];
-  private playerIdCounter = 0;
-  private lastLossPlayerId = -1;
+  private playerIdCounter: PlayerId = 0;
 
-  generatePlayerId(): number {
+  generateId(): PlayerId {
     const id = this.playerIdCounter;
     this.playerIdCounter++;
     return id;
   }
 
-  registerPlayer(player: Player): void {
-    if (this.state === RoomState.WaitingForHost) {
-      player.setRole(PlayerRole.Host);
-    } else if (this.state === RoomState.Playing) {
-      player.setRole(PlayerRole.Observer);
-    } else if (this.players.length >= config.ROOM_MAX_PLAYERS) {
-      player.setRole(PlayerRole.Observer);
+  register(playerToAdd: Player): boolean {
+    if (this.hasPlayer(playerToAdd)) {
+      return false;
     }
 
-    this.players.push(player);
+    if (this.state === RoomState.WaitingForHost) {
+      playerToAdd.setRole(PlayerRole.Host);
+    } else if (this.state === RoomState.Playing) {
+      playerToAdd.setRole(PlayerRole.Observer);
+    } else if (this.players.length >= config.ROOM_MAX_PLAYERS) {
+      playerToAdd.setRole(PlayerRole.Observer);
+    }
+
+    this.players.push(playerToAdd);
 
     this.ensureWaitingState();
+
+    return true;
   }
 
-  unregisterPlayer(playerToRemove: Player): void {
+  unregister(playerToRemove: Player): boolean {
+    if (!this.hasPlayer(playerToRemove)) {
+      return false;
+    }
+
     const wasHost = playerToRemove.isHost();
     const wasRegular = playerToRemove.isRegular();
 
@@ -50,13 +58,15 @@ export class Room {
     }
 
     if (this.state === RoomState.Playing && (wasHost || wasRegular)) {
-      this.stopGame();
+      this.stop();
     }
 
     this.ensureWaitingState();
+
+    return true;
   }
 
-  movePlayerUp(playerId: number): boolean {
+  moveUp(playerId: PlayerId): boolean {
     const playerIndex = this.players.findIndex(
       (player) => player.getId() === playerId,
     );
@@ -77,7 +87,7 @@ export class Room {
     return true;
   }
 
-  movePlayerDown(playerId: number): boolean {
+  moveDown(playerId: PlayerId): boolean {
     const playerIndex = this.players.findIndex(
       (player) => player.getId() === playerId,
     );
@@ -98,7 +108,8 @@ export class Room {
     return true;
   }
 
-  setPlayerLossCount(playerId: number, lossCount: number): boolean {
+  // TODO: should it even be here?
+  setLossCount(playerId: PlayerId, lossCount: number): boolean {
     const player = this.players.find((player) => player.getId() === playerId);
 
     if (player === undefined) {
@@ -114,16 +125,8 @@ export class Room {
     return true;
   }
 
-  startGame(): boolean {
-    if (this.state !== RoomState.WaitingForStart) {
-      return false;
-    }
-
-    const isInitialized = this.game.init(
-      this.players.slice(0, config.ROOM_MAX_PLAYERS),
-      this.lastLossPlayerId,
-    );
-    if (!isInitialized) {
+  start(): boolean {
+    if (!this.canStart()) {
       return false;
     }
 
@@ -132,34 +135,13 @@ export class Room {
     return true;
   }
 
-  stopGame(): boolean {
-    if (this.state !== RoomState.Playing) {
+  stop(): boolean {
+    if (!this.canStop()) {
       return false;
     }
 
-    this.game.clear();
     this.setState(RoomState.WaitingForStart);
     this.upgradeObserverPlayers();
-
-    return true;
-  }
-
-  endGame(): boolean {
-    if (this.state !== RoomState.Playing) {
-      return false;
-    }
-
-    if (this.game.isEndedInLoss()) {
-      const lostPlayer = this.game.getPlayers()[0];
-      if (lostPlayer) {
-        this.lastLossPlayerId = lostPlayer.getId();
-      }
-    } else {
-      // Otherwise it should be a draw
-      this.lastLossPlayerId = -1;
-    }
-
-    this.stopGame();
 
     return true;
   }
@@ -171,7 +153,7 @@ export class Room {
   }
 
   private ensureWaitingState(): void {
-    if (this.state === RoomState.Playing) {
+    if (this.isPlaying()) {
       return;
     }
 
@@ -187,7 +169,7 @@ export class Room {
   private upgradeObserverPlayers(): void {
     this.players.forEach((player, playerIndex) => {
       if (
-        player.isObverser() &&
+        player.isObserver() &&
         this.state < RoomState.Playing &&
         playerIndex + 1 <= config.ROOM_MAX_PLAYERS
       ) {
@@ -196,18 +178,27 @@ export class Room {
     });
   }
 
+  private hasPlayer(playerToFind: Player): boolean {
+    return this.players.some((player) => {
+      return player.getId() === playerToFind.getId();
+    });
+  }
+
   clear(): void {
     this.state = RoomState.WaitingForHost;
-    this.game.clear();
     this.playerIdCounter = 0;
     this.players = [];
   }
 
-  isWaitingForHost(): boolean {
-    return this.state === RoomState.WaitingForHost;
+  isPlaying(): boolean {
+    return this.state === RoomState.Playing;
   }
 
-  isPlaying(): boolean {
+  canStart(): boolean {
+    return this.state === RoomState.WaitingForStart;
+  }
+
+  canStop(): boolean {
     return this.state === RoomState.Playing;
   }
 
@@ -217,10 +208,6 @@ export class Room {
 
   getState(): RoomState {
     return this.state;
-  }
-
-  getGame(): Game {
-    return this.game;
   }
 
   getPlayers(): Player[] {

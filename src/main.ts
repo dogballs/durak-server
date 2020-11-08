@@ -7,6 +7,7 @@ import * as WebSocket from 'ws';
 import { Card } from './Card';
 import { Player } from './Player';
 import { Room } from './Room';
+import { Game } from './Game';
 import { RoomController } from './RoomController';
 import { StringIdGenerator } from './StringIdGenerator';
 import { ExpirationTimer } from './ExpirationTimer';
@@ -20,6 +21,7 @@ const port = Number(process.env.PORT) || 3000;
 
 const roomMap = new Map<string, Room>();
 const roomExpirationMap = new Map<string, ExpirationTimer>();
+const gameMap = new Map<string, Game>();
 const clientPlayerMap = new Map<WebSocket, Player>();
 
 app.post('/room', (req, res) => {
@@ -34,6 +36,9 @@ app.post('/room', (req, res) => {
     config.ROOM_EXPIRATION_SECONDS,
   );
   roomExpirationMap.set(roomId, roomExpirationTimer);
+
+  const game = new Game();
+  gameMap.set(roomId, game);
 
   cleanupRooms();
 
@@ -89,10 +94,12 @@ wsServer.on('connection', (ws, request) => {
   const roomId = parts[2];
 
   const room = roomMap.get(roomId);
+  const game = gameMap.get(roomId);
   const roomExpirationTimer = roomExpirationMap.get(roomId);
 
   const roomController = new RoomController(
     room,
+    game,
     clientPlayerMap,
     wsServer,
     ws,
@@ -180,20 +187,21 @@ wsServer.on('connection', (ws, request) => {
 });
 
 function cleanupRooms(): void {
-  roomMap.forEach((room, id) => {
+  roomMap.forEach((room, roomId) => {
     // Room still has some players
-    if (!room.isWaitingForHost()) {
+    if (room.hasPlayers()) {
       return;
     }
 
-    const expirationTimer = roomExpirationMap.get(id);
+    const expirationTimer = roomExpirationMap.get(roomId);
 
     // Room is still waiting its expiration time
     if (!expirationTimer.hasExpired()) {
       return;
     }
 
-    roomMap.delete(id);
-    roomExpirationMap.delete(id);
+    roomMap.delete(roomId);
+    gameMap.delete(roomId);
+    roomExpirationMap.delete(roomId);
   });
 }

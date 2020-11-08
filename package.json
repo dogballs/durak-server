@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "tsc -p tsconfig.build.json && node build/main.js",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "npm run build && node build/main.js",
     "test": "ava --verbose",
     "test:watch": "ava --verbose --watch"
   },

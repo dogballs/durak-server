@@ -54,12 +54,12 @@ export class Player {
     return this.role === PlayerRole.Regular;
   }
 
-  isObverser(): boolean {
+  isObserver(): boolean {
     return this.role === PlayerRole.Observer;
   }
 
-  isNotObverser(): boolean {
-    return !this.isObverser();
+  isNotObserver(): boolean {
+    return !this.isObserver();
   }
 
   addLoss(): void {

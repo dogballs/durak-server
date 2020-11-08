@@ -1,31 +1,36 @@
 import * as WebSocket from 'ws';
 import { Card } from './Card';
+import { Game } from './Game';
 import { Player } from './Player';
 import { Room } from './Room';
+import * as config from './config';
 
 export class RoomController {
   private room: Room;
+  private game: Game;
   private server: WebSocket.Server;
   private client: WebSocket;
   private clientPlayerMap: Map<WebSocket, Player>;
 
   constructor(
     room: Room,
+    game: Game,
     clientPlayerMap: Map<WebSocket, Player>,
     server: WebSocket.Server,
     client: WebSocket,
   ) {
     this.room = room;
+    this.game = game;
     this.clientPlayerMap = clientPlayerMap;
     this.server = server;
     this.client = client;
   }
 
   register(playerName: string): void {
-    const playerId = this.room.generatePlayerId();
+    const playerId = this.room.generateId();
     const player = new Player(playerId, playerName);
 
-    this.room.registerPlayer(player);
+    this.room.register(player);
 
     this.clientPlayerMap.set(this.client, player);
 
@@ -40,23 +45,34 @@ export class RoomController {
   }
 
   start(): void {
-    const hasStarted = this.room.startGame();
-    if (!hasStarted) {
+    if (!this.room.canStart()) {
       return;
     }
 
+    const isInitialized = this.game.init(
+      this.room.getPlayers().slice(0, config.ROOM_MAX_PLAYERS),
+      this.room.lastLossPlayerId,
+    );
+    if (!isInitialized) {
+      return;
+    }
+
+    this.room.start();
+
     this.broadcastLog(`Игра началась`);
 
-    this.broadcastRoom();
     this.broadcastGame();
+    this.broadcastRoom();
     return;
   }
 
   stop(): void {
-    const hasStopped = this.room.stopGame();
-    if (!hasStopped) {
+    if (!this.room.canStop()) {
       return;
     }
+
+    this.room.stop();
+    this.game.clear();
 
     this.broadcastRoom();
     this.broadcastGame();
@@ -64,10 +80,26 @@ export class RoomController {
   }
 
   end(): void {
-    const hasEnded = this.room.endGame();
-    if (!hasEnded) {
+    if (!this.room.canStop()) {
       return;
     }
+    if (!this.game.isEnded()) {
+      return;
+    }
+
+    this.room.stop();
+
+    if (this.game.isEndedInLoss()) {
+      const lostPlayer = this.game.getPlayers()[0];
+      if (lostPlayer) {
+        this.room.lastLossPlayerId = lostPlayer.getId();
+      }
+    } else {
+      // Otherwise it should be a draw
+      this.room.lastLossPlayerId = -1;
+    }
+
+    this.game.clear();
 
     this.broadcastRoom();
     this.broadcastGame();
@@ -75,8 +107,7 @@ export class RoomController {
   }
 
   act(card: Card): void {
-    const game = this.room.getGame();
-    const hasActed = game.act(card);
+    const hasActed = this.game.act(card);
     if (!hasActed) {
       return;
     }
@@ -84,8 +115,7 @@ export class RoomController {
   }
 
   take(): void {
-    const game = this.room.getGame();
-    const hasTaken = game.take();
+    const hasTaken = this.game.take();
     if (!hasTaken) {
       return;
     }
@@ -93,8 +123,7 @@ export class RoomController {
   }
 
   pass(): void {
-    const game = this.room.getGame();
-    const hasPassed = game.pass();
+    const hasPassed = this.game.pass();
     if (!hasPassed) {
       return;
     }
@@ -107,19 +136,21 @@ export class RoomController {
       return;
     }
 
-    this.room.unregisterPlayer(player);
+    this.room.unregister(player);
     this.clientPlayerMap.delete(this.client);
 
     this.broadcastLog(`"${player.getName()}" отключился`);
 
     if (!this.room.hasPlayers()) {
       this.room.clear();
+      this.game.clear();
       // TODO: remove room
       return;
     }
 
-    if (player.isNotObverser()) {
-      this.room.stopGame();
+    if (player.isNotObserver()) {
+      this.room.stop();
+      this.game.clear();
       this.broadcastLog(`Игра остановлена (игрок отключился)`);
     }
 
@@ -149,7 +180,7 @@ export class RoomController {
   }
 
   playerMoveUp(playerId: number): void {
-    const hasMoved = this.room.movePlayerUp(playerId);
+    const hasMoved = this.room.moveUp(playerId);
     if (!hasMoved) {
       return;
     }
@@ -158,7 +189,7 @@ export class RoomController {
   }
 
   playerMoveDown(playerId: number): void {
-    const hasMoved = this.room.movePlayerDown(playerId);
+    const hasMoved = this.room.moveDown(playerId);
     if (!hasMoved) {
       return;
     }
@@ -167,7 +198,7 @@ export class RoomController {
   }
 
   playerSetLossCount(playerId: number, lossCount: number): void {
-    const hasChanged = this.room.setPlayerLossCount(playerId, lossCount);
+    const hasChanged = this.room.setLossCount(playerId, lossCount);
     if (!hasChanged) {
       return;
     }
@@ -222,10 +253,8 @@ export class RoomController {
       return;
     }
 
-    const game = this.room.getGame();
-
-    const counters = game.getPlayers().map((enemy) => {
-      const hand = game.getPlayerHand(enemy);
+    const counters = this.game.getPlayers().map((enemy) => {
+      const hand = this.game.getPlayerHand(enemy);
       const cardCount = hand.size();
 
       return {
@@ -238,9 +267,9 @@ export class RoomController {
     client.send(
       JSON.stringify({
         id: 'game',
-        game: game.toObject(),
+        game: this.game.toObject(),
         player: player.toObject(),
-        hand: game.getPlayerHand(player).toObject(),
+        hand: this.game.getPlayerHand(player).toObject(),
         counters,
       }),
     );
